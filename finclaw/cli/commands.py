@@ -155,44 +155,252 @@ def main(
 
 @app.command()
 def onboard():
-    """Initialize finclaw configuration and workspace."""
+    """Interactive setup wizard for Finclaw."""
+    from rich.panel import Panel
+    from rich.rule import Rule
+
     from finclaw.config.loader import get_config_path, load_config, save_config
     from finclaw.config.schema import Config
     from finclaw.utils.helpers import get_workspace_path
 
+    # ── Welcome ──────────────────────────────────────────────────────────────
+    console.print()
+    console.print(Panel(
+        f"[bold cyan]{__logo__} Welcome to Finclaw[/bold cyan]\n\n"
+        "AI-powered financial assistant with proactive stock monitoring,\n"
+        "watchlist tracking, and investment analysis.\n\n"
+        "[dim]This wizard will set up your LLM provider, workspace, and optional\n"
+        "alert channels (Telegram, WhatsApp, Slack, Discord).[/dim]",
+        border_style="cyan",
+    ))
+    console.print()
+
+    # ── Load or init config ───────────────────────────────────────────────────
     config_path = get_config_path()
-
     if config_path.exists():
-        console.print(f"[yellow]Config already exists at {config_path}[/yellow]")
-        console.print("  [bold]y[/bold] = overwrite with defaults (existing values will be lost)")
-        console.print("  [bold]N[/bold] = refresh config, keeping existing values and adding new fields")
-        if typer.confirm("Overwrite?"):
-            config = Config()
-            save_config(config)
-            console.print(f"[green]✓[/green] Config reset to defaults at {config_path}")
-        else:
-            config = load_config()
-            save_config(config)
-            console.print(f"[green]✓[/green] Config refreshed at {config_path} (existing values preserved)")
+        config = load_config()
+        console.print(f"[yellow]Existing config found at {config_path}[/yellow]")
+        if not typer.confirm("Update it?", default=True):
+            console.print("Keeping existing config.")
+            _onboard_workspace(config)
+            return
     else:
-        save_config(Config())
-        console.print(f"[green]✓[/green] Created config at {config_path}")
+        config = Config()
 
-    # Create workspace
+    # ── Step 1: LLM Provider ─────────────────────────────────────────────────
+    console.print(Rule("[bold]Step 1: LLM Provider[/bold]"))
+    console.print()
+
+    _PROVIDERS = [
+        ("anthropic",  "Anthropic (Claude)",          "claude-opus-4-5",        "https://console.anthropic.com/settings/keys"),
+        ("gemini",     "Google Gemini",                "gemini-2.0-flash",       "https://aistudio.google.com/app/apikey"),
+        ("openai",     "OpenAI (GPT-4o)",              "gpt-4o",                 "https://platform.openai.com/api-keys"),
+        ("openrouter", "OpenRouter (multi-model)",     "openrouter/auto",        "https://openrouter.ai/keys"),
+        ("deepseek",   "DeepSeek",                     "deepseek/deepseek-chat", "https://platform.deepseek.com"),
+        ("ollama",     "Ollama (local, no key needed)","ollama/llama3.2",        "https://ollama.com"),
+        ("custom",     "Custom / OpenAI-compatible",  "",                        ""),
+    ]
+
+    for i, (_, label, default_model, _url) in enumerate(_PROVIDERS, 1):
+        console.print(f"  [cyan]{i}[/cyan]. {label}  [dim]({default_model})[/dim]")
+
+    console.print()
+    choice = typer.prompt("Choose a provider", default="1")
+    try:
+        idx = int(choice) - 1
+        if not 0 <= idx < len(_PROVIDERS):
+            raise ValueError
+    except ValueError:
+        console.print("[red]Invalid choice, defaulting to Anthropic.[/red]")
+        idx = 0
+
+    provider_name, provider_label, default_model, key_url = _PROVIDERS[idx]
+
+    # API key (skip for Ollama)
+    if provider_name == "ollama":
+        console.print(f"\n[green]✓[/green] Ollama runs locally — no API key needed.")
+        api_key = ""
+        model = typer.prompt(f"Model", default=default_model)
+    elif provider_name == "custom":
+        api_key = typer.prompt("API key (leave blank if not required)", default="", hide_input=True)
+        api_base = typer.prompt("API base URL", default="http://localhost:8000/v1")
+        model = typer.prompt("Model name", default="default")
+        config.providers.custom.api_key = api_key
+        config.providers.custom.api_base = api_base
+    else:
+        if key_url:
+            console.print(f"\n  Get your API key at: [cyan]{key_url}[/cyan]")
+        api_key = typer.prompt(f"\n{provider_label} API key", hide_input=True)
+        model = typer.prompt("Model", default=default_model)
+
+    # Write into config
+    if provider_name != "custom":
+        provider_cfg = getattr(config.providers, provider_name, None)
+        if provider_cfg is not None:
+            provider_cfg.api_key = api_key
+        else:
+            console.print(f"[yellow]Warning: provider '{provider_name}' not found in schema, storing under 'custom'.[/yellow]")
+            config.providers.custom.api_key = api_key
+
+    config.agents.defaults.model = model
+    config.agents.defaults.provider = provider_name
+    console.print(f"\n[green]✓[/green] Provider: {provider_label}  |  Model: {model}")
+
+    # ── Step 2: Workspace ─────────────────────────────────────────────────────
+    console.print()
+    console.print(Rule("[bold]Step 2: Workspace[/bold]"))
+    console.print()
+    _onboard_workspace(config)
+
+    # ── Step 3: Alert Channels (optional) ────────────────────────────────────
+    console.print()
+    console.print(Rule("[bold]Step 3: Alert Channels (optional)[/bold]"))
+    console.print()
+    console.print("Finclaw can send proactive stock alerts to your chat app.")
+    console.print("You can skip this now and configure channels later.\n")
+
+    _CHANNELS = [
+        ("telegram",  "Telegram"),
+        ("whatsapp",  "WhatsApp"),
+        ("slack",     "Slack"),
+        ("discord",   "Discord"),
+    ]
+
+    for i, (_, label) in enumerate(_CHANNELS, 1):
+        console.print(f"  [cyan]{i}[/cyan]. {label}")
+    console.print("  [cyan]s[/cyan]. Skip")
+    console.print()
+
+    ch_choice = typer.prompt("Set up a channel", default="s").strip().lower()
+
+    if ch_choice == "1" or ch_choice == "telegram":
+        _setup_telegram(config)
+    elif ch_choice == "2" or ch_choice == "whatsapp":
+        _setup_whatsapp(config)
+    elif ch_choice == "3" or ch_choice == "slack":
+        _setup_slack(config)
+    elif ch_choice == "4" or ch_choice == "discord":
+        _setup_discord(config)
+    else:
+        console.print("[dim]Skipping channel setup. Run [cyan]finclaw channels status[/cyan] to configure later.[/dim]")
+
+    # ── Save config ───────────────────────────────────────────────────────────
+    save_config(config)
+    config_path.chmod(0o600)
+    console.print(f"\n[green]✓[/green] Config saved to {config_path}")
+
+    # ── Done ──────────────────────────────────────────────────────────────────
+    console.print()
+    console.print(Panel(
+        f"[bold green]{__logo__} Finclaw is ready![/bold green]\n\n"
+        "[bold]Start chatting:[/bold]\n"
+        "  [cyan]finclaw agent[/cyan]                    (interactive)\n"
+        '  [cyan]finclaw agent -m "Add AAPL to my watchlist"[/cyan]\n\n'
+        "[bold]Run with proactive monitoring:[/bold]\n"
+        "  [cyan]finclaw gateway[/cyan]\n\n"
+        "[bold]Check status:[/bold]\n"
+        "  [cyan]finclaw status[/cyan]",
+        border_style="green",
+    ))
+
+
+def _onboard_workspace(config) -> None:
+    """Create workspace directory and sync templates."""
+    from finclaw.utils.helpers import get_workspace_path
     workspace = get_workspace_path()
-
-    if not workspace.exists():
-        workspace.mkdir(parents=True, exist_ok=True)
-        console.print(f"[green]✓[/green] Created workspace at {workspace}")
-
+    workspace.mkdir(parents=True, exist_ok=True)
     sync_workspace_templates(workspace)
+    console.print(f"[green]✓[/green] Workspace ready at {workspace}")
 
-    console.print(f"\n{__logo__} finclaw is ready!")
-    console.print("\nNext steps:")
-    console.print("  1. Add your API key to [cyan]~/.finclaw/config.json[/cyan]")
-    console.print("     Get one at: https://openrouter.ai/keys")
-    console.print("  2. Chat: [cyan]finclaw agent -m \"Hello!\"[/cyan]")
-    console.print("\n[dim]Want Telegram/WhatsApp? See: https://github.com/martinmuller/finclaw#-chat-apps[/dim]")
+
+def _setup_telegram(config) -> None:
+    """Interactive Telegram channel setup."""
+    from rich.panel import Panel
+    console.print()
+    console.print(Panel(
+        "[bold]Telegram Setup[/bold]\n\n"
+        "1. Open Telegram and message [cyan]@BotFather[/cyan]\n"
+        "2. Send [cyan]/newbot[/cyan] and follow the prompts\n"
+        "3. Copy the bot token (looks like [dim]1234567890:ABC...[/dim])\n\n"
+        "To find your user ID: message [cyan]@userinfobot[/cyan]",
+        border_style="cyan",
+    ))
+    token = typer.prompt("\nBot token").strip()
+    user_id = typer.prompt("Your Telegram user ID (for allow-list)").strip()
+
+    config.channels.telegram.enabled = True
+    config.channels.telegram.token = token
+    config.channels.telegram.allow_from = [user_id] if user_id else []
+
+    console.print(f"[green]✓[/green] Telegram configured. Start the gateway with [cyan]finclaw gateway[/cyan]")
+
+
+def _setup_whatsapp(config) -> None:
+    """Interactive WhatsApp channel setup."""
+    from rich.panel import Panel
+    console.print()
+    console.print(Panel(
+        "[bold]WhatsApp Setup[/bold]\n\n"
+        "WhatsApp uses a local bridge (Node.js required).\n\n"
+        "After saving config, run:\n"
+        "  [cyan]finclaw channels login[/cyan]\n\n"
+        "Scan the QR code with WhatsApp on your phone.\n"
+        "Then start the gateway with [cyan]finclaw gateway[/cyan].",
+        border_style="cyan",
+    ))
+    phone = typer.prompt("Your WhatsApp phone number (e.g. +1234567890, for allow-list)").strip()
+
+    config.channels.whatsapp.enabled = True
+    config.channels.whatsapp.allow_from = [phone] if phone else []
+
+    console.print(f"[green]✓[/green] WhatsApp configured. Run [cyan]finclaw channels login[/cyan] to link your device.")
+
+
+def _setup_slack(config) -> None:
+    """Interactive Slack channel setup."""
+    from rich.panel import Panel
+    console.print()
+    console.print(Panel(
+        "[bold]Slack Setup[/bold]\n\n"
+        "1. Go to [cyan]https://api.slack.com/apps[/cyan] → Create New App → From scratch\n"
+        "2. Under [bold]Socket Mode[/bold], enable it and generate an App-Level Token ([dim]xapp-...[/dim])\n"
+        "3. Under [bold]OAuth & Permissions[/bold], add scopes: [dim]chat:write, im:history, im:read, im:write[/dim]\n"
+        "4. Install app to workspace and copy the Bot Token ([dim]xoxb-...[/dim])\n"
+        "5. Under [bold]Event Subscriptions[/bold], subscribe to: [dim]message.im[/dim]",
+        border_style="cyan",
+    ))
+    bot_token = typer.prompt("\nBot token (xoxb-...)").strip()
+    app_token = typer.prompt("App-level token (xapp-...)").strip()
+    user_id = typer.prompt("Your Slack user ID (for allow-list, e.g. U012AB3CD)").strip()
+
+    config.channels.slack.enabled = True
+    config.channels.slack.bot_token = bot_token
+    config.channels.slack.app_token = app_token
+    config.channels.slack.allow_from = [user_id] if user_id else []
+
+    console.print(f"[green]✓[/green] Slack configured. Start the gateway with [cyan]finclaw gateway[/cyan]")
+
+
+def _setup_discord(config) -> None:
+    """Interactive Discord channel setup."""
+    from rich.panel import Panel
+    console.print()
+    console.print(Panel(
+        "[bold]Discord Setup[/bold]\n\n"
+        "1. Go to [cyan]https://discord.com/developers/applications[/cyan]\n"
+        "2. Create New Application → Bot → Reset Token\n"
+        "3. Enable [bold]Message Content Intent[/bold] under Privileged Gateway Intents\n"
+        "4. Invite the bot to your server with [dim]bot[/dim] + [dim]applications.commands[/dim] scopes",
+        border_style="cyan",
+    ))
+    token = typer.prompt("\nBot token").strip()
+    user_id = typer.prompt("Your Discord user ID (for allow-list)").strip()
+
+    config.channels.discord.enabled = True
+    config.channels.discord.token = token
+    config.channels.discord.allow_from = [user_id] if user_id else []
+
+    console.print(f"[green]✓[/green] Discord configured. Start the gateway with [cyan]finclaw gateway[/cyan]")
 
 
 
