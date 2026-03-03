@@ -104,3 +104,4 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "--tb=short"
