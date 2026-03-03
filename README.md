@@ -9,12 +9,19 @@ Finclaw is an open-source personal finance AI. It watches your stocks, forms its
 ## What Finclaw Does
 
 - **Watchlist with memory** — Tell Finclaw which stocks you're interested in. It saves them, remembers your investment thesis, and keeps track of its own evolving opinions.
+- **Proactive alerts** — Get notified instantly when breaking news hits your stocks, when prices move significantly, or when earnings are announced — no polling required.
 - **Daily price monitoring** — Checks prices at market open and close. Alerts you when something significant moves.
-- **Proactive news scanning** — Monitors news for your watched stocks. Flags earnings, M&A, analyst upgrades, and regulatory news.
+- **Morning brief** — Every trading day, Finclaw sends a pre-market summary of your watchlist: price action, overnight news, and anything to watch for at open.
+- **Proactive news scanning** — Monitors news for your watched stocks. Flags earnings, M&A, analyst upgrades, regulatory news, and insider commentary.
 - **Opinionated analysis** — Finclaw forms a clear Bullish/Neutral/Bearish view on every stock, with conviction levels and reasoning. It updates its opinions when new information arrives.
 - **Investment thesis tracking** — Share your thesis. Finclaw incorporates it into every analysis and tells you when news confirms or challenges it.
+- **Technical analysis** — Ask about RSI, MACD, Bollinger Bands, moving averages, or just "how does this chart look?" and get a plain-English answer.
+- **Fundamental analysis** — Valuations, margins, growth rates, balance sheet health, and insider transactions — all explained in context.
+- **Sector & macro awareness** — Finclaw tracks sector rotation, benchmark performance, and macro context to explain why your stocks are moving.
+- **Insider activity tracking** — Monitors insider buying and selling across your watchlist and flags anything unusual.
 - **Discovery & suggestions** — Based on your interests and market conditions, Finclaw proactively suggests related stocks, ETFs, bonds, and strategies.
 - **Deep analysis on demand** — Full fundamental + technical analysis, AI exposure scoring, or Wall Street-grade financial models.
+- **Multi-channel delivery** — Receive alerts and chat with Finclaw via WhatsApp, Telegram, Discord, Slack, or directly in the terminal.
 
 ---
 
@@ -94,10 +101,61 @@ I'm Bullish | High conviction. Revenue grew 94% YoY. Your AI thesis is well-supp
 Main risk: valuation at 65x forward P/E and custom silicon competition from hyperscalers.
 ```
 
+**Proactive alert — breaking news:**
+```
+Finclaw: 🚨 NVDA Alert — Jensen Huang just announced a new GPU architecture at CES.
+Pre-market up 4.2%. This directly supports your AI infrastructure thesis.
+Key detail: 3x performance/watt improvement targets hyperscaler adoption.
+Want a full breakdown?
+```
+
 **Proactive daily update:**
 ```
 Finclaw: 📊 Market Close — NVDA +1.9% | AAPL -0.8% | TSLA -3.1% ⚠️
 TSLA delivery data looks mixed. Checking news... [analysis follows]
+```
+
+**Morning watchlist brief:**
+```
+Finclaw: ☀️ Good morning. Market opens in 30 min.
+NVDA: $881 (+0.7% pre-mkt) — no major news overnight
+AAPL: $189 (-0.3% pre-mkt) — China sales data due today, watch for reaction
+TSLA: $172 (-1.1% pre-mkt) ⚠️ — Reuters reports production slowdown in Berlin
+```
+
+**Asking for a technical analysis:**
+```
+You: How does AAPL look technically?
+
+Finclaw: AAPL Technical — $189.40
+RSI: 58 (neutral, not overbought)
+MACD: Bullish crossover 3 days ago, momentum building
+Above 50-day SMA ($183) ✅ and 200-day SMA ($178) ✅
+Bollinger: Trading near mid-band, room to run
+Short-term outlook: Mildly bullish. No technical resistance until $195.
+```
+
+**Asking about fundamentals:**
+```
+You: Is TSLA cheap or expensive right now?
+
+Finclaw: TSLA Valuation — Expensive relative to current growth
+P/E: 72x (vs. sector avg 18x)
+Revenue growth slowing: 19% → 8% YoY
+Gross margin compressed to 17.4% (was 29% in 2022)
+PEG ratio: 3.1 — you're paying a large premium for expected growth
+My view: Bearish on valuation. Would need to see margin recovery or new product catalyst to change stance.
+```
+
+**Sector check:**
+```
+You: How is tech doing today?
+
+Finclaw: Sector Snapshot — Technology (XLK): -0.8% today
+Semiconductors (SOXX): -1.4% — profit-taking after recent run
+Software (IGV): -0.3% — relatively resilient
+Broad market (SPY): -0.5%
+Tech underperforming slightly. No single macro driver — likely rotation into energy (+1.1%).
 ```
 
 **Discovery suggestion:**
@@ -105,6 +163,17 @@ TSLA delivery data looks mixed. Checking news... [analysis follows]
 Finclaw: 💡 Given your AI infrastructure thesis, you might also watch SMCI
 (Super Micro) — they make the servers running NVDA GPUs, up 200% YoY.
 Want me to add it?
+```
+
+**Checking insider activity:**
+```
+You: Any insider buying in my watchlist recently?
+
+Finclaw: Insider Activity — Last 30 days
+NVDA: No significant insider transactions
+AAPL: Tim Cook sold 511K shares ($96M) on Feb 12 — scheduled 10b5-1 plan, routine
+TSLA: Elon Musk no recent activity. Board member sold $2.1M — minor
+Nothing alarming. AAPL sale is a pre-planned divestment, not a signal.
 ```
 
 ---
