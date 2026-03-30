@@ -313,6 +313,15 @@ class MCPServerConfig(Base):
     tool_timeout: int = 30  # Seconds before a tool call is cancelled
 
 
+class FinancialDataConfig(Base):
+    """Financial data source configuration."""
+
+    fred_api_key: str = ""  # FRED API key (free: https://fred.stlouisfed.org/docs/api/api_key.html)
+    reddit_client_id: str = ""  # Reddit API app client ID
+    reddit_client_secret: str = ""  # Reddit API app client secret
+    reddit_user_agent: str = "finclaw/1.0"
+
+
 class ToolsConfig(Base):
     """Tools configuration."""
 
@@ -320,6 +329,7 @@ class ToolsConfig(Base):
     exec: ExecToolConfig = Field(default_factory=ExecToolConfig)
     restrict_to_workspace: bool = False  # If true, restrict all tool access to workspace directory
     mcp_servers: dict[str, MCPServerConfig] = Field(default_factory=dict)
+    financial_data: FinancialDataConfig = Field(default_factory=FinancialDataConfig)
 
 
 class Config(BaseSettings):

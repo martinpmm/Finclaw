@@ -499,6 +499,12 @@ def gateway(
         session_manager=session_manager,
         mcp_servers=config.tools.mcp_servers,
         channels_config=config.channels,
+        fred_api_key=config.tools.financial_data.fred_api_key or None,
+        reddit_config={
+            "client_id": config.tools.financial_data.reddit_client_id,
+            "client_secret": config.tools.financial_data.reddit_client_secret,
+            "user_agent": config.tools.financial_data.reddit_user_agent,
+        },
     )
 
     # Set cron callback (needs agent)
@@ -671,6 +677,12 @@ def agent(
         restrict_to_workspace=config.tools.restrict_to_workspace,
         mcp_servers=config.tools.mcp_servers,
         channels_config=config.channels,
+        fred_api_key=config.tools.financial_data.fred_api_key or None,
+        reddit_config={
+            "client_id": config.tools.financial_data.reddit_client_id,
+            "client_secret": config.tools.financial_data.reddit_client_secret,
+            "user_agent": config.tools.financial_data.reddit_user_agent,
+        },
     )
 
     # Show spinner when logs are off (no output to miss); skip when logs are on
@@ -1165,6 +1177,12 @@ def cron_run(
         restrict_to_workspace=config.tools.restrict_to_workspace,
         mcp_servers=config.tools.mcp_servers,
         channels_config=config.channels,
+        fred_api_key=config.tools.financial_data.fred_api_key or None,
+        reddit_config={
+            "client_id": config.tools.financial_data.reddit_client_id,
+            "client_secret": config.tools.financial_data.reddit_client_secret,
+            "user_agent": config.tools.financial_data.reddit_user_agent,
+        },
     )
 
     store_path = get_data_dir() / "cron" / "jobs.json"
