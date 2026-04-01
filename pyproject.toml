@@ -77,6 +77,11 @@ alt-data = [
 multi-asset = [
     "ccxt>=4.0.0,<5.0.0",
 ]
+market-data = [
+    "alpaca-py>=0.20.0",
+    "pandas-datareader>=0.10.0",
+    "investiny>=0.9.0",
+]
 reports = [
     "weasyprint>=62.0",
     "markdown>=3.6.0,<4.0.0",

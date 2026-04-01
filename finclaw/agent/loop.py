@@ -77,6 +77,8 @@ class AgentLoop:
         channels_config: ChannelsConfig | None = None,
         fred_api_key: str | None = None,
         reddit_config: dict | None = None,
+        alpaca_api_key: str | None = None,
+        alpaca_secret_key: str | None = None,
     ):
         from finclaw.config.schema import ExecToolConfig
         self.bus = bus
@@ -124,6 +126,8 @@ class AgentLoop:
         self._processing_lock = asyncio.Lock()
         self._fred_api_key = fred_api_key
         self._reddit_config = reddit_config or {}
+        self._alpaca_api_key = alpaca_api_key
+        self._alpaca_secret_key = alpaca_secret_key
         self._register_default_tools()
 
     def _register_default_tools(self) -> None:
@@ -230,6 +234,26 @@ class AgentLoop:
         try:
             from finclaw.agent.tools.report import ReportTool
             self.tools.register(ReportTool(workspace=self.workspace))
+        except ImportError:
+            pass
+        # Market data tools (alpaca, stooq, investiny)
+        try:
+            from finclaw.agent.tools.alpaca import AlpacaMarketDataTool
+            self.tools.register(AlpacaMarketDataTool(
+                workspace=self.workspace,
+                api_key=self._alpaca_api_key,
+                secret_key=self._alpaca_secret_key,
+            ))
+        except ImportError:
+            pass
+        try:
+            from finclaw.agent.tools.stooq import StooqHistoryTool
+            self.tools.register(StooqHistoryTool(workspace=self.workspace))
+        except ImportError:
+            pass
+        try:
+            from finclaw.agent.tools.investiny import InvestinyGlobalTool
+            self.tools.register(InvestinyGlobalTool(workspace=self.workspace))
         except ImportError:
             pass
 

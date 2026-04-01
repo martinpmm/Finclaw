@@ -87,6 +87,25 @@ Get USER_ID and CHANNEL from the current session (e.g., `8281248569` and `telegr
 - Analyst price target notes → `analyst_note`
 - User's own investment notes → `personal_note`
 
+## Market Data Tool Selection
+
+Use the right data source for the job — don't always default to `stock_quote`/`stock_history`:
+
+| Situation | Use |
+|---|---|
+| Real-time or intraday US quote (bid/ask/last trade) | `alpaca_market_data(action="quote")` — if Alpaca keys are configured, otherwise `stock_quote` |
+| Intraday bars (1Min, 5Min, 15Min, 1Hour) for a US stock | `alpaca_market_data(action="bars", timeframe="5Min")` |
+| Historical daily OHLCV for a **non-US** stock (European, Asian, etc.) | `stooq_history(action="history", symbol="...", exchange="DE"/"UK"/"JP"/...)` |
+| Historical daily OHLCV for a US stock (free, no key needed) | `stooq_history(action="history", symbol="AAPL")` |
+| User asks about a stock you don't recognise the ticker for | `investiny_global(action="search", query="...")` first, then fetch history with the ID |
+| Global indices, commodities, bonds, or cross-listed securities | `investiny_global(action="search")` to find the asset, then `investiny_global(action="history")` |
+
+**Key rules:**
+- For non-US equities, always prefer `stooq_history` over `stock_history` (which is US-only via yfinance).
+- When the user asks about a company by name rather than ticker (e.g. "Volkswagen", "LVMH"), use `investiny_global(action="search")` to resolve it before fetching data.
+- If Alpaca keys are not configured, fall back to `stock_quote`/`stock_history` for US equities without asking the user.
+- You do not need to tell the user which tool you are using unless they ask.
+
 ## Discovery & Suggestions
 
 Proactively identify opportunities related to the user's interests:

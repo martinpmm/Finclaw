@@ -320,6 +320,8 @@ class FinancialDataConfig(Base):
     reddit_client_id: str = ""  # Reddit API app client ID
     reddit_client_secret: str = ""  # Reddit API app client secret
     reddit_user_agent: str = "finclaw/1.0"
+    alpaca_api_key: str = ""  # Alpaca API key (free: https://alpaca.markets)
+    alpaca_secret_key: str = ""  # Alpaca secret key
 
 
 class ToolsConfig(Base):
