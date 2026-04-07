@@ -284,6 +284,47 @@ def onboard():
     else:
         console.print("[dim]Skipping channel setup. Run [cyan]finclaw channels status[/cyan] to configure later.[/dim]")
 
+    # ── Step 4: Financial Data Sources (optional) ────────────────────────────
+    console.print()
+    console.print(Rule("[bold]Step 4: Financial Data Sources (optional)[/bold]"))
+    console.print()
+    console.print("Finclaw supports additional data sources for richer analysis:")
+    console.print("  [green]✓[/green] [bold]Stooq[/bold] — free global historical data, works out of the box (no key needed)")
+    console.print("  [green]✓[/green] [bold]investiny[/bold] — global securities search via Investing.com (no key needed)")
+    console.print("  [yellow]![/yellow] [bold]FRED[/bold], [bold]Reddit[/bold], [bold]Alpaca[/bold] — require a free API key\n")
+    console.print("[dim]Install market-data extras to enable all three: [cyan]pip install finclaw[market-data][/cyan][/dim]\n")
+
+    if typer.confirm("Configure financial data API keys?", default=False):
+        console.print()
+        console.print("  [bold]FRED[/bold] — macroeconomic data (GDP, inflation, rates, etc.)")
+        console.print("  Get a free key at: [cyan]https://fred.stlouisfed.org/docs/api/api_key.html[/cyan]")
+        fred_key = typer.prompt("  FRED API key (leave blank to skip)", default="", hide_input=True)
+        if fred_key:
+            config.tools.financial_data.fred_api_key = fred_key
+            console.print("  [green]✓[/green] FRED key saved.")
+
+        console.print()
+        console.print("  [bold]Reddit[/bold] — social sentiment for your watchlist stocks")
+        console.print("  Create an app at: [cyan]https://www.reddit.com/prefs/apps[/cyan]")
+        reddit_id = typer.prompt("  Reddit client ID (leave blank to skip)", default="")
+        if reddit_id:
+            reddit_secret = typer.prompt("  Reddit client secret", default="", hide_input=True)
+            config.tools.financial_data.reddit_client_id = reddit_id
+            config.tools.financial_data.reddit_client_secret = reddit_secret
+            console.print("  [green]✓[/green] Reddit credentials saved.")
+
+        console.print()
+        console.print("  [bold]Alpaca[/bold] — US equity quotes and bars (free tier: 15-min delayed)")
+        console.print("  Get free keys at: [cyan]https://alpaca.markets[/cyan]")
+        alpaca_key = typer.prompt("  Alpaca API key (leave blank to skip)", default="")
+        if alpaca_key:
+            alpaca_secret = typer.prompt("  Alpaca secret key", default="", hide_input=True)
+            config.tools.financial_data.alpaca_api_key = alpaca_key
+            config.tools.financial_data.alpaca_secret_key = alpaca_secret
+            console.print("  [green]✓[/green] Alpaca credentials saved.")
+    else:
+        console.print("[dim]Skipping. Add keys under [cyan]tools.financial_data[/cyan] in config.json later.[/dim]")
+
     # ── Save config ───────────────────────────────────────────────────────────
     save_config(config)
     config_path.chmod(0o600)
@@ -499,6 +540,14 @@ def gateway(
         session_manager=session_manager,
         mcp_servers=config.tools.mcp_servers,
         channels_config=config.channels,
+        fred_api_key=config.tools.financial_data.fred_api_key or None,
+        reddit_config={
+            "client_id": config.tools.financial_data.reddit_client_id,
+            "client_secret": config.tools.financial_data.reddit_client_secret,
+            "user_agent": config.tools.financial_data.reddit_user_agent,
+        },
+        alpaca_api_key=config.tools.financial_data.alpaca_api_key or None,
+        alpaca_secret_key=config.tools.financial_data.alpaca_secret_key or None,
     )
 
     # Set cron callback (needs agent)
@@ -671,6 +720,14 @@ def agent(
         restrict_to_workspace=config.tools.restrict_to_workspace,
         mcp_servers=config.tools.mcp_servers,
         channels_config=config.channels,
+        fred_api_key=config.tools.financial_data.fred_api_key or None,
+        reddit_config={
+            "client_id": config.tools.financial_data.reddit_client_id,
+            "client_secret": config.tools.financial_data.reddit_client_secret,
+            "user_agent": config.tools.financial_data.reddit_user_agent,
+        },
+        alpaca_api_key=config.tools.financial_data.alpaca_api_key or None,
+        alpaca_secret_key=config.tools.financial_data.alpaca_secret_key or None,
     )
 
     # Show spinner when logs are off (no output to miss); skip when logs are on
@@ -1165,6 +1222,14 @@ def cron_run(
         restrict_to_workspace=config.tools.restrict_to_workspace,
         mcp_servers=config.tools.mcp_servers,
         channels_config=config.channels,
+        fred_api_key=config.tools.financial_data.fred_api_key or None,
+        reddit_config={
+            "client_id": config.tools.financial_data.reddit_client_id,
+            "client_secret": config.tools.financial_data.reddit_client_secret,
+            "user_agent": config.tools.financial_data.reddit_user_agent,
+        },
+        alpaca_api_key=config.tools.financial_data.alpaca_api_key or None,
+        alpaca_secret_key=config.tools.financial_data.alpaca_secret_key or None,
     )
 
     store_path = get_data_dir() / "cron" / "jobs.json"

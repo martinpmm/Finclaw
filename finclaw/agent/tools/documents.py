@@ -50,7 +50,7 @@ class DocumentsTool(Tool):
             "news article, or any relevant text, extract the key insights and store them "
             "with action='ingest'. The knowledge base persists across sessions. "
             "Reference it when forming opinions on related stocks. "
-            "Actions: ingest, list, get, delete, search."
+            "Actions: ingest, ingest_pdf, ingest_sec, list, get, delete, search."
         )
 
     @property
@@ -60,9 +60,11 @@ class DocumentsTool(Tool):
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["ingest", "list", "get", "delete", "search"],
+                    "enum": ["ingest", "ingest_pdf", "ingest_sec", "list", "get", "delete", "search"],
                     "description": (
                         "ingest: store key notes from a document; "
+                        "ingest_pdf: extract text from a PDF file and ingest; "
+                        "ingest_sec: pull an SEC filing via edgartools and ingest; "
                         "list: show all stored documents; "
                         "get: retrieve full notes for a document by title; "
                         "delete: remove a document; "
@@ -103,6 +105,19 @@ class DocumentsTool(Tool):
                     "type": "string",
                     "description": "Keyword or phrase to search for across all stored documents",
                 },
+                "file_path": {
+                    "type": "string",
+                    "description": "Path to a PDF file for ingest_pdf action",
+                },
+                "symbol": {
+                    "type": "string",
+                    "description": "Stock ticker for ingest_sec action",
+                },
+                "form_type": {
+                    "type": "string",
+                    "enum": ["10-K", "10-Q", "8-K"],
+                    "description": "SEC form type for ingest_sec action. Default: 10-K.",
+                },
             },
             "required": ["action"],
         }
@@ -127,6 +142,18 @@ class DocumentsTool(Tool):
             return self._delete(title=kwargs.get("title", ""))
         if action == "search":
             return self._search(query=kwargs.get("query", ""))
+        if action == "ingest_pdf":
+            return self._ingest_pdf(
+                file_path=kwargs.get("file_path", ""),
+                title=kwargs.get("title", ""),
+                tickers=kwargs.get("tickers", ""),
+            )
+        if action == "ingest_sec":
+            return self._ingest_sec(
+                symbol=kwargs.get("symbol", ""),
+                form_type=kwargs.get("form_type", "10-K"),
+                title=kwargs.get("title", ""),
+            )
         return f"Unknown action: {action}"
 
     # ------------------------------------------------------------------
@@ -232,6 +259,71 @@ class DocumentsTool(Tool):
                 lines.append(f"  › {m}")
             lines.append("")
         return "\n".join(lines)
+
+    def _ingest_pdf(self, file_path: str, title: str, tickers: str) -> str:
+        """Extract text from a PDF file and ingest key insights."""
+        if not file_path:
+            return "Error: 'file_path' is required for ingest_pdf."
+
+        from pathlib import Path
+        pdf_path = Path(file_path).expanduser()
+        if not pdf_path.exists():
+            return f"Error: File not found: {file_path}"
+
+        # Try pypdf first, then pdfplumber
+        text = ""
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(str(pdf_path))
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except ImportError:
+            try:
+                import pdfplumber
+                with pdfplumber.open(str(pdf_path)) as pdf:
+                    text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+            except ImportError:
+                return "Error: PDF reading requires pypdf or pdfplumber. Install with: pip install finclaw[documents]"
+
+        if not text.strip():
+            return "Error: Could not extract text from PDF."
+
+        # Auto-generate title if not provided
+        if not title:
+            title = pdf_path.stem.replace("_", " ").replace("-", " ").title()
+
+        # Truncate for ingestion (the LLM should summarize before ingesting)
+        if len(text) > 10000:
+            text = text[:10000] + "\n\n... [PDF text truncated — extract key insights before ingesting]"
+
+        return (
+            f"PDF text extracted from **{pdf_path.name}** ({len(text)} chars). "
+            f"Review the text below and call documents(action='ingest', title='{title}', "
+            f"notes='...key insights...', source_type='other', tickers='{tickers}') "
+            f"to store the important insights.\n\n---\n\n{text}"
+        )
+
+    def _ingest_sec(self, symbol: str, form_type: str, title: str) -> str:
+        """Pull an SEC filing via edgartools and prepare for ingestion."""
+        if not symbol:
+            return "Error: 'symbol' is required for ingest_sec."
+
+        try:
+            from finclaw.data.edgar import get_filing_text
+        except ImportError:
+            return "Error: edgartools not installed. Install with: pip install finclaw[market-intel]"
+
+        result = get_filing_text(symbol.upper(), form_type, index=0, max_chars=10000)
+        if "error" in result:
+            return result["error"]
+
+        auto_title = title or f"{symbol.upper()} {form_type} ({result['filing_date']})"
+
+        return (
+            f"SEC filing retrieved: **{auto_title}** (filed {result['filing_date']}). "
+            f"Review the text below and call documents(action='ingest', title='{auto_title}', "
+            f"notes='...key insights...', source_type='sec_filing', tickers='{symbol.upper()}') "
+            f"to store the important insights.\n\n---\n\n{result['text']}"
+        )
 
     # ------------------------------------------------------------------
     # Helpers

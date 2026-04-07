@@ -75,6 +75,10 @@ class AgentLoop:
         session_manager: SessionManager | None = None,
         mcp_servers: dict | None = None,
         channels_config: ChannelsConfig | None = None,
+        fred_api_key: str | None = None,
+        reddit_config: dict | None = None,
+        alpaca_api_key: str | None = None,
+        alpaca_secret_key: str | None = None,
     ):
         from finclaw.config.schema import ExecToolConfig
         self.bus = bus
@@ -120,6 +124,10 @@ class AgentLoop:
         self._consolidation_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
         self._active_tasks: dict[str, list[asyncio.Task]] = {}  # session_key -> tasks
         self._processing_lock = asyncio.Lock()
+        self._fred_api_key = fred_api_key
+        self._reddit_config = reddit_config or {}
+        self._alpaca_api_key = alpaca_api_key
+        self._alpaca_secret_key = alpaca_secret_key
         self._register_default_tools()
 
     def _register_default_tools(self) -> None:
@@ -154,6 +162,100 @@ class AgentLoop:
         self.tools.register(RelatedTickersTool())
         self.tools.register(WatchlistTool(workspace=self.workspace))
         self.tools.register(DocumentsTool(workspace=self.workspace))
+        # Market intelligence tools (optional — degrade gracefully if deps missing)
+        try:
+            from finclaw.agent.tools.macro import MacroMonitorTool
+            self.tools.register(MacroMonitorTool(
+                workspace=self.workspace, fred_api_key=self._fred_api_key,
+            ))
+        except ImportError:
+            pass
+        try:
+            from finclaw.agent.tools.sentiment import SentimentTool
+            self.tools.register(SentimentTool(workspace=self.workspace))
+        except ImportError:
+            pass
+        try:
+            from finclaw.agent.tools.sec_filings import SECFilingsTool
+            self.tools.register(SECFilingsTool())
+        except ImportError:
+            pass
+        # Portfolio tool
+        try:
+            from finclaw.agent.tools.portfolio import PortfolioTool
+            self.tools.register(PortfolioTool(workspace=self.workspace))
+        except ImportError:
+            pass
+        # Memory query tool
+        try:
+            from finclaw.agent.tools.memory_query import MemoryQueryTool
+            self.tools.register(MemoryQueryTool(workspace=self.workspace))
+        except ImportError:
+            pass
+        # Alternative data tools
+        try:
+            from finclaw.agent.tools.social_sentiment import SocialSentimentTool
+            self.tools.register(SocialSentimentTool(
+                workspace=self.workspace,
+                reddit_client_id=self._reddit_config.get("client_id", ""),
+                reddit_client_secret=self._reddit_config.get("client_secret", ""),
+                reddit_user_agent=self._reddit_config.get("user_agent", "finclaw/1.0"),
+            ))
+        except ImportError:
+            pass
+        try:
+            from finclaw.agent.tools.institutional import InstitutionalHoldingsTool
+            self.tools.register(InstitutionalHoldingsTool())
+        except ImportError:
+            pass
+        try:
+            from finclaw.agent.tools.options import OptionsFlowTool
+            self.tools.register(OptionsFlowTool())
+        except ImportError:
+            pass
+        # Earnings calendar
+        try:
+            from finclaw.agent.tools.earnings import EarningsCalendarTool
+            self.tools.register(EarningsCalendarTool(workspace=self.workspace))
+        except ImportError:
+            pass
+        # Multi-asset tools
+        try:
+            from finclaw.agent.tools.crypto import CryptoTool
+            self.tools.register(CryptoTool())
+        except ImportError:
+            pass
+        try:
+            from finclaw.agent.tools.chilean_market import ChileanMarketTool
+            self.tools.register(ChileanMarketTool())
+        except ImportError:
+            pass
+        # Report generation
+        try:
+            from finclaw.agent.tools.report import ReportTool
+            self.tools.register(ReportTool(workspace=self.workspace))
+        except ImportError:
+            pass
+        # Market data tools (alpaca, stooq, investiny)
+        try:
+            from finclaw.agent.tools.alpaca import AlpacaMarketDataTool
+            self.tools.register(AlpacaMarketDataTool(
+                workspace=self.workspace,
+                api_key=self._alpaca_api_key,
+                secret_key=self._alpaca_secret_key,
+            ))
+        except ImportError:
+            pass
+        try:
+            from finclaw.agent.tools.stooq import StooqHistoryTool
+            self.tools.register(StooqHistoryTool(workspace=self.workspace))
+        except ImportError:
+            pass
+        try:
+            from finclaw.agent.tools.investiny import InvestinyGlobalTool
+            self.tools.register(InvestinyGlobalTool(workspace=self.workspace))
+        except ImportError:
+            pass
 
     async def _connect_mcp(self) -> None:
         """Connect to configured MCP servers (one-time, lazy)."""
