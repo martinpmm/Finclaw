@@ -486,6 +486,37 @@ def _make_provider(config: Config):
 
 
 # ============================================================================
+# Web Platform
+# ============================================================================
+
+
+@app.command()
+def web(
+    host: str = typer.Option("0.0.0.0", "--host", "-H", help="Host to bind to"),
+    port: int = typer.Option(8080, "--port", "-p", help="Port to listen on"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
+):
+    """Start the Finclaw web platform with dashboard UI."""
+    try:
+        import uvicorn
+    except ImportError:
+        console.print("[red]Error: Web dependencies not installed.[/red]")
+        console.print("Install with: pip install finclaw[web]")
+        raise typer.Exit(1)
+
+    from finclaw.web.app import create_app
+
+    if verbose:
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+
+    console.print(f"{__logo__} Starting Finclaw web platform on http://{host}:{port}")
+
+    app_instance = create_app()
+    uvicorn.run(app_instance, host=host, port=port, log_level="info" if verbose else "warning")
+
+
+# ============================================================================
 # Gateway / Server
 # ============================================================================
 
